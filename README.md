@@ -48,7 +48,7 @@ You can do this:
 $dql = new DynamoQL();
 $dql->dql("CREATE TABLE my_table 
            HASH ID AS NUMBER, RANGE Date AS NUMBER
-  		       READ 500 WRITE 500");
+  		   READ 500 WRITE 500");
 ```
 
 I did my best to come up with a syntax that feels close to SQL syntaxes while also fits the most common Amazon DynamoDB tasks.
