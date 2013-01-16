@@ -1,5 +1,5 @@
 {
-    "name": "dynamoql",
+    "name": "dynamoql/dynamoql",
     "homepage": "http://github.com/KonradKiss/dynamoql",
     "description":"DynamoQL",
     "keywords":["php", "framework", "mvc", "aws","amazon","sdk","s3","ec2","dynamodb"],
