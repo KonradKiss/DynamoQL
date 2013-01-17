@@ -11,7 +11,7 @@ This librabry is intended to simlpify the most basic tasks, such as creating and
 
 Hence it does not intend to support the more advanced features of SQL languages such as joining tables, grouping data and ordering the results.
 
-This is merely a library that can make simple tasks less painful when dealing with Amazon DynamoDB. It requires the AWS SDK for PHP (ver.2) to be installed in order to work.
+This is merely a library that can make simple tasks less painful when dealing with Amazon DynamoDB. It requires the [AWS SDK for PHP (ver.2)](https://github.com/aws/aws-sdk-php) to be installed in order to work.
 
 ## Example ##
 
