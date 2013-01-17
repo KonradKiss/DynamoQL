@@ -59,7 +59,7 @@ Report issues here: https://github.com/KonradKiss/DynamoQL/issues
 
 ## Syntax ##
 
-DynamoQL command syntax is case-insensitive. Here I've used all uppercase commands while variables are differentiated via lowercase characters.
+DynamoQL command syntax is case-insensitive while variable syntax is case-sensitive. Here I've used all uppercase commands while variables are differentiated via lowercase characters.
 
 ### Hash and Range types ###
 
@@ -128,7 +128,7 @@ If there is already a value identified by the hash or hash + range keys then we 
 
 ```
 Q INSERT INTO  my_table VALUES uuid = "aea1ceb0-60f5-11e2-bcfd-0800200c9a66", timestamp = 1358461861, message = "Test message!"
-// the insert statement is queued into the write request batch.. we could do more inserts here
+// The insert statement is queued into the write request batch.. we could do more inserts here
 FLUSH
 // The write request batch is sent along with those possible other inserts.
 // The table my_table receives a new record or we receive an exception if there is already 
