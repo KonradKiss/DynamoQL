@@ -46,14 +46,32 @@ You can do this:
 ```php
 
 $dql = new DynamoQL();
-$dql->dql("CREATE TABLE my_table 
-           HASH ID AS NUMBER, RANGE Date AS NUMBER
-  		   READ 500 WRITE 500");
+$dql->dql("CREATE TABLE my_table HASH ID AS NUMBER, RANGE Date AS NUMBER", true);
+$dql->dql("RESIZE THROUGHPUT my_table READ 500 WRITE 500");
 ```
 
 I did my best to come up with a syntax that feels close to SQL syntaxes while also fits the most common Amazon DynamoDB tasks.
 
 Report issues here: https://github.com/KonradKiss/DynamoQL/issues
+
+## Syntax ##
+
+### Hash and Range types ###
+
+At this time DynamoQL supprots the following values for *Hash* and *Range* key types: `NUMBER`, `STRING`, `NUMBERSET`, `STRINGSET`
+
+### Creating a table ###
+
+```
+CREATE TABLE table_name HASH hash_name AS hash_type [ RANGE range_name AS range_type ]
+```
+
+#### Example ####
+
+```
+CREATE TABLE my_table HASH uuid AS STRING [ RANGE timestamp AS NUMBER ]
+```
+
 
 ---
 
