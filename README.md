@@ -44,17 +44,22 @@ $response = $dynamodb->create_table(array(
 You can do this:
 
 ```php
-
 $dql = new DynamoQL();
 $dql->dql("CREATE TABLE my_table HASH ID AS NUMBER, RANGE Date AS NUMBER", true);
 $dql->dql("RESIZE THROUGHPUT my_table READ 500 WRITE 500");
 ```
 
-I did my best to come up with a syntax that feels close to SQL syntaxes while also fits the most common Amazon DynamoDB tasks.
+We first create the table. The last `true` parameter signals that this operation is synchronous. This means that the next command will not execute until the table is available (`ACTIVE`) or the request times out. We can then change the throughput if the default (`5`,`5`) is not good enough.
+
+While here we used two commands, most of the time it becomes simpler than that. I did my best to come up with a syntax that feels close to SQL syntaxes while also fits the most common Amazon DynamoDB tasks.
 
 Report issues here: https://github.com/KonradKiss/DynamoQL/issues
 
+
+
 ## Syntax ##
+
+DynamoQL command syntax is case-insensitive. Here I've used all uppercase commands while variables are differentiated via lowercase characters.
 
 ### Hash and Range types ###
 
@@ -66,11 +71,73 @@ At this time DynamoQL supprots the following values for *Hash* and *Range* key t
 CREATE TABLE table_name HASH hash_name AS hash_type [ RANGE range_name AS range_type ]
 ```
 
-#### Example ####
+**Example**
 
 ```
-CREATE TABLE my_table HASH uuid AS STRING [ RANGE timestamp AS NUMBER ]
+CREATE TABLE my_table HASH uuid AS STRING RANGE timestamp AS NUMBER
+// We now have a my_table table with a uuid key as a string Hash key 
+// and a numeric timestamp as the range key.
 ```
+
+### Dropping a table ###
+
+```
+REMOVE TABLE table_name
+```
+
+**Example**
+
+```
+REMOVE TABLE my_table
+// my_table is no more.
+```
+
+### Changing throughput  ###
+
+Throughput is only changed if the given value is not the same as the current value. It also needs to be at most two times the current value and it can not go below 1.
+
+`RESIZE THROUGHPUT` is used to change the throughput of a single table while `GLOBAL THROUGHPUT` is used to change the throughput of every single table.
+
+```
+RESIZE THROUGHPUT table_name READ reads WRITE writes
+GLOBAL THROUGHPUT READ reads WRITE writes
+```
+
+**Example**
+
+```
+RESIZE THROUGHPUT my_table READ 20 WRITE 10
+// my_table now has a read throughput of 20 and a write throughput of 10.
+GLOBAL THROUGHPUT READ 5 WRITE 5
+// All tables now have a read/write throughput of 5.
+```
+
+### Inserting values into a table ###
+
+Inserts happen one at a time. It is not possible to chain several inserts together within a single command, however, by prepending the command with a `Q` command, it is possible to queue the insert command into the write request batch.
+
+Values only need to use `"` or `'` characters for encapsulation if a `,` character is present in the value. Types for values other than the hash and range keys are recognized by examining the given attribute's value.
+
+If there is already a value identified by the hash or hash + range keys then we receive an exception.
+
+```
+(Q) INSERT INTO table_name VALUES hash_key = "hash_value", (range_key = range_value,) attribute1 = "value1", ... , attributen = "valuen"
+```
+
+**Example**
+
+```
+Q INSERT INTO  my_table VALUES uuid = "aea1ceb0-60f5-11e2-bcfd-0800200c9a66", timestamp = 1358461861, message = "Test message!"
+// the insert statement is queued into the write request batch.. we could do more inserts here
+FLUSH
+// The write request batch is sent along with those possible other inserts.
+// The table my_table receives a new record or we receive an exception if there is already 
+// a record with the given hash + range key combo.
+```
+
+
+
+
 
 
 ---
