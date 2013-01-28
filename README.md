@@ -7,7 +7,7 @@ A simple SQL-like interface to the NoSQL Amazon DynamoDB service.
 
 **But that is already possible with [x]!**
 
-This librabry is intended to simlpify the most basic tasks, such as creating and dropping tables, scaling provisions and selecting, inserting, updating and deleting items from a table. The goal was to be able to prototype web applications quickly without the need to set up a more sophisticated infrastructure.
+This library is intended to simplify the most basic tasks, such as creating and dropping tables, scaling provisions and selecting, inserting, updating and deleting items from a table. The goal was to be able to prototype web applications quickly without the need to set up a more sophisticated infrastructure.
 
 Hence it does not intend to support the more advanced features of SQL languages such as joining tables, grouping data and ordering the results.
 
@@ -145,4 +145,3 @@ FLUSH
 Developed by Konrad Kiss (http://www.konradkiss.com/).
 
 This software is licensed under Apache 2.0 license terms. Read LICENSE.txt for more information. AWS, Amazon DynamoDB and other Amazon Web Services are copyright 2012 Amazon Technologies, Inc. This product relies on software developed by Amazon Technologies, Inc (http://www.amazon.com/).
-

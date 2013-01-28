@@ -1,0 +1,58 @@
+
+// ---
+
+// Example usage / tests:
+
+// CREATE
+
+// $DQL->dql("create table test hash uuid as string range timestamp as number"); // ok
+// $DQL->dql("q create table test2 hash uuid as string range timestamp as number"); // ok
+
+
+// INSERT
+
+// $DQL->dql("insert into test VALUES uuid = '".\DynamoQL\Common\UUIDManager::generate(rand(1,1000000))."', timestamp = '".time()."', color='blue', speed='fast', grade=1"); // ok
+// $DQL->dql("insert into test VALUES uuid = '".\DynamoQL\Common\UUIDManager::generate(rand(1,1000000))."', timestamp = '".time()."', color='yellow', speed='slow', grade='1'"); // ok
+// $DQL->dql("q insert into test VALUES uuid = '".\DynamoQL\Common\UUIDManager::generate(rand(1,1000000))."', timestamp = '".time()."', color='green', speed='moderate', grade='1'"); // ok
+// $DQL->dql("q insert into test VALUES uuid = '".\DynamoQL\Common\UUIDManager::generate(rand(1,1000000))."', timestamp = '".time()."', color='orange', speed='slow', grade='2'"); // ok
+// $DQL->dql("q insert into test VALUES uuid = '".\DynamoQL\Common\UUIDManager::generate(rand(1,1000000))."', timestamp = '".time()."', color='red', speed='fast', grade='3'"); // ok
+// $DQL->dql("flush"); // ok
+
+
+// UPDATE
+
+// $DQL->dql("update test SET speed = 'slow' where uuid = '406026949' and timestamp = '1359203398'"); // ok
+// $DQL->dql("update test SET speed = 'moderate' where uuid = '406026949' and timestamp = '1359203398'"); // ok
+
+
+// SELECT
+
+// $DQL->dql("select uuid, timestamp, color, grade, speed from test"); // ok
+// $DQL->dql("select uuid, timestamp, color, grade, speed from test where color='orange'"); // ok
+// $DQL->dql("select uuid, timestamp, color, grade, speed from test where grade='nontexisting'"); // ok
+// $DQL->dql("q select uuid, timestamp, color, grade, speed from test"); // ok
+// $DQL->dql("q select uuid, timestamp, color, grade, speed from test where color='orange'"); // ok
+// $DQL->dql("q select uuid, timestamp, color, grade, speed from test where grade='nontexisting'"); // ok
+// $DQL->dql("select uuid, timestamp, color, grade, speed from test where timestamp != '1359207540'"); // ok
+// $DQL->dql("select uuid, timestamp, color, grade, speed from test where timestamp < '1359207539'"); // ok
+
+
+// DELETE
+
+// $DQL->dql("delete from test where uuid = '1785345391' and timestamp = '1359203076'"); // ok
+// $DQL->dql("q delete from test where uuid = '628410386' and timestamp = '1359202434'"); // ok
+// $DQL->dql("q delete from test where uuid = '4109837372' and timestamp = '1359203076'"); // ok
+// $DQL->dql("q delete from test where uuid = '2460268630' and timestamp = '1359202516'"); // ok
+// $DQL->dql("flush"); // ok
+
+
+// RESIZE / GLOBAL
+
+// $DQL->dql("resize throughput test read 2 write 2"); // ok
+// $DQL->dql("global throughput read 1 write 1"); // ok
+
+
+// REMOVE
+
+// $DQL->dql("q remove table test"); // ok
+// $DQL->dql("remove table test2"); // ok

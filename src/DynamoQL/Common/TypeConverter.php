@@ -32,6 +32,6 @@ class TypeConverter
             "NUMBERSET" => Type::NUMBER_SET
         );
 
-        return $type_to_name[$name];
+        return $type_to_name[strtoupper($name)];
     }
 }

@@ -19,8 +19,6 @@ namespace DynamoQL;
  * DynamoQL is a class library that brings a (very) simple query language (SQL-like) interface to the
  * no-sql Amazon DynamoDB database service. Amazon DynamoDB is copyright 2010-2012 Amazon.com Inc. or its affiliates.
  *
-* DynamoQL is a low cost simplified solution to making simple queries to the Amazon DynamoDB service.
- *
  * @version 2012.01.26
     * @license See the included NOTICE.md file for complete information.
  * @copyright See the included NOTICE.md file for complete information.
@@ -60,11 +58,10 @@ class DynamoQL
     private $waitTimeoutSeconds                         = 300;
 
     /**
-     * Constructs a new instance of <DynamoQL>.
+     * DynamoQL constructor.
      *
-     * @param bool $debug
-     * @param array|object $opts (Optional) If an existing AmazonDynamoDB is to be used for DynamoDB connections, pass that object, otherwise pass the options required to create a new AmazonDynamoDB object.
-     * @return DynamoQL
+     * @param null $opts options array for passing AWS credentials
+     * @param bool $debug controls whether the current instance allows debug messages
      */
     public function __construct($opts=null, $debug=false)
     {
@@ -80,13 +77,25 @@ class DynamoQL
         }
     }
 
+    /**
+     * DynamoQL destructor. Makes sure that the batch queue is empty when the object is destroyed.
+     */
     public function __destruct()
     {
         if (!$this->getBatch()->isEmpty()) {
+            // TODO: Should we automatically flush here?
             ExceptionManager::raiseError(new DynamoQLException("DynamoQL: The write request batch is not empty!"));
         }
     }
 
+    /**
+     * Prepares a unified response with return status information.
+     *
+     * @param $response - a response array with the resulting data
+     *
+     * @return array    an array of response data extended with status code, status message
+     *                  and exception type information or the input if it was an unrecognized object
+     */
     private function prepareResponse($response)
     {
         // get only the result data array
@@ -96,9 +105,9 @@ class DynamoQL
         }
         // convert boolean return values (just in case)
         if ($response === true) {
-            return ["status" => \DynamoQL\Common\Enum\Response::OK, "message" => ""];
+            return ["status" => \DynamoQL\Common\Enum\Response::OK, "message" => "", "exception_type" => ""];
         } else if ($response === false) {
-            return ["status" => \DynamoQL\Common\Enum\Response::UNKNOWN, "message" => "Unknown error."];
+            return ["status" => \DynamoQL\Common\Enum\Response::UNKNOWN, "message" => "Unknown error.", "exception_type" => ""];
         } else if (gettype($response) == "array") {
             if (!isset($response['status']))
                 $response['status'] = \DynamoQL\Common\Enum\Response::OK;
@@ -156,24 +165,24 @@ class DynamoQL
             $r["rows"] = isset($response['rows']) ? $response['rows'] : [];
             $r["errno"] = $response['status'];
             $r["error"] = $response['message'];
-            $r["errtype"] = $response['exception_type'];
+            $r["errtype"] = isset($response['exception_type']) ? $response['exception_type'] : '';
         }
 
         return $r;
     }
 
     /**
-     * Executes an sql statement and returns the result object. See http://www.konradkiss.com/p/dynamoql.html
+     * Executes an sql statement and returns the result object.
      *
-     * @param string $dql The sql-like query markup to execute.
-     * @param boolean $wait (Optional) Creating a table and making it active takes a while. Set this to true to make the method wait until the table is active, or set to false (default) to return regardless of the created table's status.
-     * @param int $try_count
-     * @return object The resulting XML object
+     * @param {String} $dql The sql-like query markup to execute.
+     * @param {Integer} (Optional) $try_count The number of retries already done.
+     * @return {Array} The response array
      */
-    public function dql($dql, $wait=true, $try_count=0)
+    public function dql($dql, $try_count=0)
     {
-        if ($this->debug)
-            RuntimeDebug::message("DQL (wait=".($wait?"true":"false").")", $dql);
+        if ($this->debug) {
+            RuntimeDebug::message("DQL", $dql);
+        }
 
         if (strtoupper(substr(trim($dql), 0, 4))=="DQL ") {
             $dql = substr(trim($dql), 4);
@@ -215,11 +224,17 @@ class DynamoQL
             case "DELETE": // not queued
                 $response = $this->deleteFromTable($params["TABLE"], $params["WHERE"], false);
                 break;
+            case "Q CREA":
+                $response = $this->createTable($params["TABLE"], $params["HASH"], $params["HASH_TYPE"], $params["RANGE"], $params["RANGE_TYPE"], false);
+                break;
             case "CREATE":
-                $response = $this->createTable($params["TABLE"], $params["HASH"], $params["HASH_TYPE"], $params["RANGE"], $params["RANGE_TYPE"], $wait);
+                $response = $this->createTable($params["TABLE"], $params["HASH"], $params["HASH_TYPE"], $params["RANGE"], $params["RANGE_TYPE"], true);
+                break;
+            case "Q REMO":
+                $response = $this->removeTable($params["TABLE"], false);
                 break;
             case "REMOVE":
-                $response = $this->removeTable($params["TABLE"], $wait);
+                $response = $this->removeTable($params["TABLE"], true);
                 break;
             case "RESIZE":
                 $response = $this->resizeThroughput($params["TABLE"], $params["READ"], $params["WRITE"]);
@@ -263,7 +278,9 @@ class DynamoQL
                             break;
                     }
                     break;
+                case "q crea":
                 case "create":
+                case "q remo":
                 case "remove":
                     switch ($r["error"]) {
                         // any kind of limits, throttling messages and resources can be tried again until they succeed
@@ -282,7 +299,7 @@ class DynamoQL
                 echo("\nRetrying (".($try_count<$this->maximum_try_count ? $try_count : "last try").") ".$dql."\nReason: ".$r["errno"].": ".$r["error"]."\n");
                 set_time_limit($this->executionTime);
                 sleep(1); // the query will wait 1 second before trying again
-                $r = $this->dql($dql, $wait, $try_count);
+                $r = $this->dql($dql, $try_count);
                 return $r;
             }
 
@@ -343,9 +360,9 @@ class DynamoQL
             $starting = explode(",", $starting);
             if (count($starting) > 0) {
                 $esk = [];
-                $esk["HashKeyElement"] = array($keypair->hash->type => $starting[0]);
+                $esk["HashKeyElement"] = [$keypair->hash->type => $starting[0]];
                 if (count($starting) > 1) {
-                    $esk["RangeKeyElement"] = array($keypair->range->type => $starting[1]);
+                    $esk["RangeKeyElement"] = [$keypair->range->type => $starting[1]];
                 }
                 $cmd_arr["ExclusiveStartKey"] = $esk;
             }
@@ -356,7 +373,7 @@ class DynamoQL
             // query by hash
             // will need to rearrange cmd_arr
             unset($cmd_arr["ScanFilter"]);
-            $cmd_arr["HashKeyValue"] = array($keypair->hash->type => $hash_key_value);
+            $cmd_arr["HashKeyValue"] = [$keypair->hash->type => $hash_key_value];
             if ($has_range) {
                 $cmd_arr["RangeKeyCondition"] = $ca["ScanFilter"][$keypair->range->name];
             }
@@ -467,26 +484,26 @@ class DynamoQL
 
         $field_pairs = [];
         foreach($values as $attr_name => $value) {
-            if ($attr_name == $keypair->hash->name) {
-                $field_pairs[$attr_name] = array($keypair->hash->type => $value);
-            } else if ($keypair->range != null && $attr_name == $keypair->range->name) {
-                $field_pairs[$attr_name] = array($keypair->range->type => $value);
-            } else {
-                $field_pairs[$attr_name] = is_numeric($value) ? array(Type::NUMBER => $value) : array(Type::STRING => $value);
+            if ($attr_name != $keypair->hash->name && $attr_name != $keypair->range->name) {
+                $field_pairs[$attr_name] = ["Action" => \Aws\DynamoDb\Enum\AttributeAction::PUT, "Value" => [(is_numeric($value) ? Type::NUMBER : Type::STRING) => $value]];
             }
         }
 
         $expected = [];
+        $keys = [];
 
         // fetch the condition into the field_pairs and expected arrays
-        ConditionParser\Update::parse($condition, $keypair, $field_pairs, $expected);
+        ConditionParser\Update::parse($condition, $keypair, $keys, $expected);
 
         // $expected and $field_pairs should now be parsed out
-        $insert_data = array(
+        $update_data = [
             "TableName" => $table_name,
-            "Item" => $field_pairs,
-            "Expected" => $expected
-        );
+            "Key" => $keys,
+            "AttributeUpdates" => $field_pairs
+        ];
+        if (!empty($expected)) {
+            $update_data["Expected"] = $expected;
+        }
 
         // can not be batched until Expected is supported
 //        if ($should_batch) {
@@ -494,7 +511,7 @@ class DynamoQL
 //        } else {
 //            $this->flushBatch();
             try {
-                $response = $this->dynamodb->putItem($insert_data);
+                $response = $this->dynamodb->updateItem($update_data);
                 // make sure the response has status information
                 $response = $this->prepareResponse($response);
             } catch (\Exception $e) {
@@ -516,34 +533,34 @@ class DynamoQL
         foreach($values as $attr_name => $value) {
             $uuid_base .= $attr_name.$value;
             if ($attr_name == $keypair->hash->name) {
-                $field_pairs[$attr_name] = array($keypair->hash->type => (string)$value);
+                $field_pairs[$attr_name] = [$keypair->hash->type => (string)$value];
                 $hash_key_value = $value;
             } else if ($keypair->range != null && $attr_name == $keypair->range->name) {
-                $field_pairs[$attr_name] = array($keypair->range->type => $value);
+                $field_pairs[$attr_name] = [$keypair->range->type => $value];
             } else {
-                $field_pairs[$attr_name] = is_numeric($value) ? array(Type::NUMBER => (string)$value) : array(Type::STRING => (string)$value);
+                $field_pairs[$attr_name] = is_numeric($value) ? [Type::NUMBER => (string)$value] : [Type::STRING => (string)$value];
             }
         }
         $expected = "";
         // omitting the hash key from the value list will make this automatically create a uuid number as the hash key value
         if ($hash_key_value == "") {
             $uuid = (string)UUIDManager::generate($uuid_base, 32);
-            $field_pairs[$keypair->hash->name] = array($keypair->hash->type => (string)$uuid);
+            $field_pairs[$keypair->hash->name] = [$keypair->hash->type => (string)$uuid];
             $hash_key_value = $uuid;
             // if we're auto-generating a uuid, then we assume that it does not exist
             // this will make it fail with an EXCEPTION_VALIDATION if the id exists and not simply overwrite an existing record
-            $expected = array($keypair->hash->name => array( "Exists" => false ));
+            $expected = [$keypair->hash->name => ["Exists" => false]];
         }
-        $insert_data = array(
+        $insert_data = [
             "TableName" => $table_name,
             "Item" => $field_pairs ///*$this->dynamodb->attributes(*/$values/*)*/
-        );
+        ];
         if ($expected != "")
             $insert_data["Expected"] = $expected;
 
         // INSERT does not batch, Q INSERT does
         if ($should_batch) {
-            $response = $this->addBatch("put", $table_name, $insert_data);
+            $response = $this->addBatch("put", $table_name, $field_pairs);
         } else {
             // flush the batch
             $this->flushBatch();
@@ -591,24 +608,24 @@ class DynamoQL
 
     private function createTable($table_name, $hash_key, $hash_type, $range_key, $range_type, $wait=true)
     {
-        $param_array = array(
+        $param_array = [
             'TableName' => $table_name,
-            'KeySchema' => array(
-                'HashKeyElement' => array(
+            'KeySchema' => [
+                'HashKeyElement' => [
                     'AttributeName' => $hash_key,
                     'AttributeType' => TypeConverter::byName($hash_type)
-                )
-            ),
-            'ProvisionedThroughput' => array(
+                ]
+            ],
+            'ProvisionedThroughput' => [
                 'ReadCapacityUnits' => 5,
                 'WriteCapacityUnits' => 5
-            )
-        );
+            ]
+        ];
         if ($range_key != "") {
-            $param_array['KeySchema']['RangeKeyElement'] = array(
+            $param_array['KeySchema']['RangeKeyElement'] = [
                 'AttributeName' => $range_key,
                 'AttributeType' => TypeConverter::byName($range_type)
-            );
+            ];
         }
         try {
             $response = $this->dynamodb->createTable($param_array);
@@ -626,9 +643,9 @@ class DynamoQL
         do {
             set_time_limit($this->executionTime);
             try {
-                $response = $this->dynamodb->describeTable(array(
+                $response = $this->dynamodb->describeTable([
                     'TableName' => $table_name
-                ));
+                ]);
                 // make sure the response has status information
                 $response = $this->prepareResponse($response);
                 $table_status = $response['Table']['TableStatus'];
@@ -653,14 +670,14 @@ class DynamoQL
     private function removeTable($table_name, $wait=true)
     {
         try {
-            $response = $this->dynamodb->deleteTable(array(
+            $response = $this->dynamodb->deleteTable([
                 'TableName' => $table_name
-            ));
+            ]);
             // make sure the response has status information
             $response = $this->prepareResponse($response);
         } catch (\Exception $e) {
             // it should not be an error when the table is not found
-            $response = ExceptionManager::process($e, "ResourceNotFoundException");
+            $response = ExceptionManager::process($e, "Aws\\DynamoDb\\Exception\\ResourceNotFoundException");
             return $response;
         }
 
@@ -671,16 +688,16 @@ class DynamoQL
         do {
             set_time_limit($this->executionTime);
             try {
-                $response = $this->dynamodb->describeTable(array(
+                $response = $this->dynamodb->describeTable([
                     'TableName' => $table_name
-                ));
+                ]);
                 // make sure the response has status information
                 $response = $this->prepareResponse($response);
             } catch (\Exception $e) {
                 // We do not want to treat a ResourceNotFoundException as an exception,
                 // since this signals normal behavior (the resource has been deleted).
                 // Anything else is scary!
-                $response = ExceptionManager::process($e, "ResourceNotFoundException");
+                $response = ExceptionManager::process($e, "Aws\\DynamoDb\\Exception\\ResourceNotFoundException");
                 return $response;
             }
             // we'll need to wait for the table to be deleted
@@ -704,13 +721,13 @@ class DynamoQL
         if ($current_read_capacity==$read_capacity && $current_write_capacity==$write_capacity)
             return $this->createOKResponse();
         try {
-            $response = $this->dynamodb->updateTable(array(
+            $response = $this->dynamodb->updateTable([
                 'TableName' => $table_name,
                 'ProvisionedThroughput' => array(
                     'ReadCapacityUnits' => (int)$read_capacity,
                     'WriteCapacityUnits' => (int)$write_capacity
                 )
-            ));
+            ]);
             // make sure the response has status information
             $response = $this->prepareResponse($response);
         } catch (\Exception $e) {
@@ -746,13 +763,13 @@ class DynamoQL
     private function describeTable($table_name, $must_exist=false)
     {
         try {
-            $response = $this->dynamodb->describeTable(array(
+            $response = $this->dynamodb->describeTable([
                 'TableName' => $table_name
-            ));
+            ]);
         } catch (\Exception $e) {
             // if there is no need for the table to exist (ie. during pre-caching)
             // then not finding the table will be treated as a \DynamoQL\Common\Enum\Response::OK
-            $response = ExceptionManager::process($e, ($must_exist ? "" : "ResourceNotFoundException"));
+            $response = ExceptionManager::process($e, ($must_exist ? "" : "Aws\\DynamoDb\\Exception\\ResourceNotFoundException"));
             return $response;
         }
         // make sure the response has status information
@@ -768,7 +785,7 @@ class DynamoQL
         }
 
         $cmd = [];
-        switch(trim(substr($dql, 0, 6)))
+        switch(strtoupper(trim(substr($dql, 0, 6))))
         {
             case "FLUSH":
                 break;
@@ -788,11 +805,11 @@ class DynamoQL
                     $ta = explode(" ", $trailing);
                     $mnemonic = 0; // 0- where, 1- limit, 2- starting
                     foreach($ta as $text) {
-                        if ($text == "LIMIT" || $text == "Limit" || $text == "limit") {
+                        if (strtoupper($text) == "LIMIT") {
                             $mnemonic = 1;
                             continue;
                         }
-                        if ($text == "STARTING" || $text == "Starting" || $text == "starting") {
+                        if (strtoupper($text) == "STARTING") {
                             $mnemonic = 2;
                             continue;
                         }
@@ -831,8 +848,7 @@ class DynamoQL
                 $split = preg_split("/^(q update|update)[\s]+(.*?)[\s]*?(set)[\s]+(.*?)[\s]*?(where){0,1}?[\s]*?(.*)?/ismU", $dql, -1, PREG_SPLIT_NO_EMPTY | PREG_SPLIT_DELIM_CAPTURE);
                 $cmd["TABLE"] = trim(trim($split[1]));
                 $set_where = $split[3];
-                $set_where = str_replace(" where ", " WHERE ", $set_where);
-                $set_where = str_replace(" Where ", " WHERE ", $set_where);
+                $set_where = preg_replace("/[\s]+where[\s]+/i", " WHERE ", $set_where);
                 $set_where = explode("WHERE", $set_where);
                 try {
                     $cmd["SET"] =  Helper::breakupKeyValuePairs(trim($set_where[0]));
@@ -847,19 +863,24 @@ class DynamoQL
                 $cmd["TABLE"] = trim($split[1]);
                 $cmd["WHERE"] = $this->processDeleteCondition(trim($split[1]), trim($split[3]));
                 break;
+            case "Q CREA":
             case "CREATE":
-                $split = preg_split("/^(create[\s]+table)[\s]+(.*?)(hash){1}(.*?)[\s]*/ismU", $dql, -1, PREG_SPLIT_NO_EMPTY | PREG_SPLIT_DELIM_CAPTURE);
+                $split = preg_split("/^(q create[\s]+table|create[\s]+table)[\s]+(.*?)(hash){1}(.*?)[\s]*/ismU", $dql, -1, PREG_SPLIT_NO_EMPTY | PREG_SPLIT_DELIM_CAPTURE);
                 $cmd["TABLE"] = trim($split[1]);
-                $key_definitions = explode(" RANGE ", trim($split[3]));
-                $hash_part = explode(" AS ", trim($key_definitions[0]));
-                $range_part = count($key_definitions)>1 ? explode(" AS ", trim($key_definitions[1])) : array("", "");
+                $split[3] = preg_replace("/[\s]+range[\s]+/i", " RANGE ", trim($split[3]));
+                $key_definitions = explode(" RANGE ", $split[3]);
+                $key_definitions[0] = preg_replace("/[\s]+as[\s]+/i", " AS ",trim($key_definitions[0]));
+                $hash_part = explode(" AS ", $key_definitions[0]);
+                $key_definitions[1] = preg_replace("/[\s]+as[\s]+/i", " AS ",trim($key_definitions[1]));
+                $range_part = count($key_definitions)>1 ? explode(" AS ", $key_definitions[1]) : ["", ""];
                 $cmd["HASH"] = Helper::breakupList(trim($hash_part[0]));
                 $cmd["HASH_TYPE"] = trim($hash_part[1]);
                 $cmd["RANGE"] = (!empty($range_part[0])) ? Helper::breakupList(trim($range_part[0])) : "";
                 $cmd["RANGE_TYPE"] = trim($range_part[1]);
                 break;
+            case "Q REMO":
             case "REMOVE":
-                $split = preg_split("/^(remove[\s]+table)[\s]+(.*?)[\s]*?/ismU", $dql, -1, PREG_SPLIT_NO_EMPTY | PREG_SPLIT_DELIM_CAPTURE);
+                $split = preg_split("/^(q remove[\s]+table|remove[\s]+table)[\s]+(.*?)[\s]*?/ismU", $dql, -1, PREG_SPLIT_NO_EMPTY | PREG_SPLIT_DELIM_CAPTURE);
                 $cmd["TABLE"] = trim($split[1]);
                 break;
             case "RESIZE":

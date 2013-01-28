@@ -1,4 +1,4 @@
 .idea/
 ~/*
 */~/*
-src\DynamoQL\dqltest.php
+tests\dqltests.txt

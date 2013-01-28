@@ -58,7 +58,7 @@ class ConditionParser
             }
 
             unset($params);
-            $params = DynamoQL::getWords($condition);
+            $params = Helper::getWords($condition);
 
             // recreate params separated by real_operator
             $operator_position = -1;
