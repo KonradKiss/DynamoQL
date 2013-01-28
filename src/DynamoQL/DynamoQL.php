@@ -1,7 +1,7 @@
 <?php
 namespace DynamoQL;
 /*
- * Copyright 2012 Konrad Kiss - konradkiss.com. All Rights Reserved.
+ * Copyright 2013 Konrad Kiss - konradkiss.com. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -17,13 +17,12 @@ namespace DynamoQL;
 
 /**
  * DynamoQL is a class library that brings a (very) simple query language (SQL-like) interface to the
- * no-sql Amazon DynamoDB database service. Amazon DynamoDB is copyright 2010-2012 Amazon.com Inc. or its affiliates.
+ * no-sql Amazon DynamoDB database service. Amazon DynamoDB is copyright 2010-2013 Amazon.com Inc. or its affiliates.
  *
- * @version 2012.01.26
+ * @version 2013.01.28
     * @license See the included NOTICE.md file for complete information.
  * @copyright See the included NOTICE.md file for complete information.
- * @link http://www.konradkiss.com/p/dynamoql.html DynamoQL
- * @link http://www.konradkiss.com/p/documentation/ DynamoQL documentation
+ * @link https://github.com/KonradKiss/dynamoql DynamoQL on GitHub
  */
 
 use Aws\DynamoDb\DynamoDbClient;
