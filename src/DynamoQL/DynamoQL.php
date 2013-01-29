@@ -51,6 +51,7 @@ class DynamoQL
     private $batch                                      = null;
     private $tables                                     = [];
     private $debug                                      = false;
+    private $table_prefix                               = "";
 
     private $maximum_try_count                          = 5;
     private $executionTime                              = 30;
@@ -62,9 +63,10 @@ class DynamoQL
      * @param null $opts options array for passing AWS credentials
      * @param bool $debug controls whether the current instance allows debug messages
      */
-    public function __construct($opts=null, $debug=false)
+    public function __construct($opts=null, $debug=false, $table_prefix="")
     {
         $this->debug = $debug;
+        $this->table_prefix = $table_prefix;
         if ($opts == null) {
             ExceptionManager::raiseError(new DynamoQLException("DynamoQL: Either specify a DynamoDBClient object or an array of credentials."));
         } else {
@@ -158,7 +160,7 @@ class DynamoQL
             $r["errno"] = \DynamoQL\Common\Enum\Response::OK;
             $r["error"] = "";
         } else {
-            if (isset($response['insertid']) && is_numeric($response['insertid'])) {
+            if (isset($response['insertid'])) {
                 $r["insertid"] = $response['insertid'];
             }
             $r["rows"] = isset($response['rows']) ? $response['rows'] : [];
@@ -261,9 +263,11 @@ class DynamoQL
                 case "insert":
                     switch ($r["errno"]) {
                         case \DynamoQL\Common\Enum\Response::CONDITIONAL_CHECK_FAILED:
-                            // inserts are tried only a number of times.. it is possible that the record is an exact duplicate of another and it will then loop endlessly
-                            if (!$too_many_tries)
-                                $must_retry = true;
+                            // Inserts assume a unique hash value
+                            // If the hash is not unique, the insert must fail
+                            $must_retry = false;
+                            // Provide a better error message
+                            $r["error"] = "A value with the given hash key already exists.";
                             break;
                     }
                     break;
@@ -302,7 +306,8 @@ class DynamoQL
                 return $r;
             }
 
-            ExceptionManager::raiseError(new DynamoQLException("DynamoQL: DQL ERROR ".($try_count>=$this->maximum_try_count ? "(maximum [".$this->maximum_try_count."] tries made)" : "")." " . $r["errno"]." : ".$r["error"]." > ".$dql));
+            //ExceptionManager::raiseError(new DynamoQLException("DynamoQL: DQL ERROR ".($try_count>=$this->maximum_try_count ? "(maximum [".$this->maximum_try_count."] tries made)" : "")." " . $r["errno"]." : ".$r["error"]." > ".$dql));
+            ExceptionManager::raiseError(new DynamoQLException("DynamoQL error: ".$r["error"], $r["errno"]));
         }
 
         if ($this->debug)
@@ -546,10 +551,12 @@ class DynamoQL
             $uuid = (string)UUIDManager::generate($uuid_base, 32);
             $field_pairs[$keypair->hash->name] = [$keypair->hash->type => (string)$uuid];
             $hash_key_value = $uuid;
-            // if we're auto-generating a uuid, then we assume that it does not exist
-            // this will make it fail with an EXCEPTION_VALIDATION if the id exists and not simply overwrite an existing record
-            $expected = [$keypair->hash->name => ["Exists" => false]];
         }
+
+        // we assume that the hash is a unique identifier and the value does nto yet exist
+        // this will make it fail with an EXCEPTION_VALIDATION if the id exists and not simply overwrite an existing record
+        $expected = [$keypair->hash->name => ["Exists" => false]];
+
         $insert_data = [
             "TableName" => $table_name,
             "Item" => $field_pairs ///*$this->dynamodb->attributes(*/$values/*)*/
@@ -558,8 +565,10 @@ class DynamoQL
             $insert_data["Expected"] = $expected;
 
         // INSERT does not batch, Q INSERT does
+        // ATTN: Q INSERT DOES NOT CHECK FOR AN EXISTING VALUE! ONLY INSERT DOES.
         if ($should_batch) {
             $response = $this->addBatch("put", $table_name, $field_pairs);
+            $response['insertid'] = $hash_key_value;
         } else {
             // flush the batch
             $this->flushBatch();
@@ -896,6 +905,11 @@ class DynamoQL
             default:
                 ExceptionManager::raiseError(new DynamoQLException("DynamoQL: Syntax error in query: ".$dql));
                 break;
+        }
+
+        // prepend the table prefix
+        if (isset($cmd["TABLE"])) {
+            $cmd["TABLE"] = $this->table_prefix.$cmd["TABLE"];
         }
 
         return $cmd;

@@ -13,7 +13,8 @@ class ExceptionManager
     public static function raiseError(\Exception $e)
     {
         error_log($e->getMessage());
-        trigger_error($e->getMessage(), E_USER_ERROR);
+        throw $e;
+        //trigger_error($e->getMessage(), E_USER_ERROR);
     }
 
     /**
