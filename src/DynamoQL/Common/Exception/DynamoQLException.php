@@ -6,4 +6,6 @@ namespace DynamoQL\Common\Exception;
  * Time: 6:37 PM
  */
 
-class DynamoQLException extends \Exception {}
+class DynamoQLException extends \Exception
+{
+}

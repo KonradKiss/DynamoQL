@@ -11,18 +11,18 @@ use Aws\DynamoDb\Enum\Type;
 
 class Update
 {
-    public static function parse(&$condition, &$keypair, &$keys, &$expected)
+    public static function parse( &$condition, &$keypair, &$keys, &$expected )
     {
         // this currently only supports EQ and only hash and range key filtering
-        foreach($condition as $condition_array) {
+        foreach ( $condition as $condition_array ) {
             $target = $condition_array["TARGET"];
-            $op = $condition_array["OP"];
+            $op     = $condition_array["OP"];
             $params = $condition_array["PARAMS"];
-            if ($op == "EQ") {
-                if (strtolower($target) == "hash" || strtolower($target) == "hash key" || $target == $keypair->hash->name) {
+            if ( $op == "EQ" ) {
+                if ( strtolower($target) == "hash" || strtolower($target) == "hash key" || $target == $keypair->hash->name ) {
                     // hash condition
                     $keys["HashKeyElement"] = [$keypair->hash->type => $params[0]];
-                } elseif (strtolower($target) == "range" || strtolower($target) == "range key" || $target == $keypair->range->name) {
+                } elseif ( strtolower($target) == "range" || strtolower($target) == "range key" || $target == $keypair->range->name ) {
                     // range condition
                     $keys["RangeKeyElement"] = [$keypair->range->type => $params[0]];
                 } else {

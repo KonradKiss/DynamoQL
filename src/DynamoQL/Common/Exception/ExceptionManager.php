@@ -10,7 +10,7 @@ class ExceptionManager
     /**
      * @param $e - exception object
      */
-    public static function raiseError(\Exception $e)
+    public static function raiseError( \Exception $e )
     {
         error_log($e->getMessage());
         throw $e;
@@ -18,34 +18,34 @@ class ExceptionManager
     }
 
     /**
-     * @param \Exception $e - Exception object (also returned as result['exception'])
-     * @param string     $exceptions_ok - string for a single instance, array for several instances of Exception classes
+     * @param \Exception $e               - Exception object (also returned as result['exception'])
+     * @param string     $exceptions_ok   - string for a single instance, array for several instances of Exception classes
      *                                    that would be treated as success
      *
      * @return array - a wrapper array containing status, message and exception keys
      */
-    public static function process(\Exception $e, $exceptions_ok = "")
+    public static function process( \Exception $e, $exceptions_ok = "" )
     {
         $resObject = ["status" => \DynamoQL\Common\Enum\Response::OK, "message" => "", "exception" => $e];
 
-        if (!is_subclass_of($e, "Exception"))
+        if ( !is_subclass_of($e, "Exception") )
             return $e;
 
         $className = get_class($e);
 
-        if (!empty($exceptions_ok)) {
-            if (gettype($exceptions_ok)=="string") {
+        if ( !empty($exceptions_ok) ) {
+            if ( gettype($exceptions_ok) == "string" ) {
                 $exceptions_ok = [$exceptions_ok];
             }
-            if (gettype($exceptions_ok)=="array") {
-                if (in_array($className, $exceptions_ok))
+            if ( gettype($exceptions_ok) == "array" ) {
+                if ( in_array($className, $exceptions_ok) )
                     return $resObject; // RESULT_OK, since the error is accepted / expected
             }
         }
 
         // this is now definitely an exception we don't like
 
-        $resObject['message'] = $e->getMessage();
+        $resObject['message']        = $e->getMessage();
         $resObject['exception_type'] = $className;
 
         switch ($className) {
@@ -100,6 +100,7 @@ class ExceptionManager
             default:
                 $resObject['status'] = \DynamoQL\Common\Enum\Response::UNKNOWN;
         }
+
         return $resObject;
     }
 }

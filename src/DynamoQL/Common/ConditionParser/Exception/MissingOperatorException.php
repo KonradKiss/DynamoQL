@@ -8,4 +8,6 @@ namespace DynamoQL\Common\ConditionParser\Exception;
 
 use DynamoQL\Common\ConditionParser\ParserException;
 
-class MissingOperatorException extends ParserException {}
+class MissingOperatorException extends ParserException
+{
+}
