@@ -68,7 +68,7 @@ class DynamoQL
         $this->debug = $debug;
         $this->table_prefix = $table_prefix;
         if ($opts == null) {
-            ExceptionManager::raiseError(new DynamoQLException("DynamoQL: Either specify a DynamoDBClient object or an array of credentials."));
+            ExceptionManager::raiseError(new DynamoQLException("Either specify a DynamoDBClient object or an array of credentials."));
         } else {
             if (is_array($opts)) {
                 $this->dynamodb = DynamoDBClient::factory($opts);
@@ -85,7 +85,7 @@ class DynamoQL
     {
         if (!$this->getBatch()->isEmpty()) {
             // TODO: Should we automatically flush here?
-            ExceptionManager::raiseError(new DynamoQLException("DynamoQL: The write request batch is not empty!"));
+            ExceptionManager::raiseError(new DynamoQLException("The write request batch is not empty!"));
         }
     }
 
@@ -307,7 +307,7 @@ class DynamoQL
             }
 
             //ExceptionManager::raiseError(new DynamoQLException("DynamoQL: DQL ERROR ".($try_count>=$this->maximum_try_count ? "(maximum [".$this->maximum_try_count."] tries made)" : "")." " . $r["errno"]." : ".$r["error"]." > ".$dql));
-            ExceptionManager::raiseError(new DynamoQLException("DynamoQL error: ".$r["error"], $r["errno"]));
+            ExceptionManager::raiseError(new DynamoQLException($r["error"], $r["errno"]));
         }
 
         if ($this->debug)
@@ -659,7 +659,7 @@ class DynamoQL
                 $table_status = $response['Table']['TableStatus'];
             } catch (\Exception $e) {
                 // this should wait on if there's a ResourceNotFound exception but bail for any other exception
-                $response = ExceptionManager::process($e, "ResourceNotFound");
+                $response = ExceptionManager::process($e, "Aws\\DynamoDb\\Exception\\ResourceNotFoundException");
                 if ($response['status'] != \DynamoQL\Common\Enum\Response::OK)
                     break;
                 // try again later otherwise
@@ -903,7 +903,8 @@ class DynamoQL
                 $cmd["WRITE"] = trim($split[4]);
                 break;
             default:
-                ExceptionManager::raiseError(new DynamoQLException("DynamoQL: Syntax error in query: ".$dql));
+                ExceptionManager::raiseError(new DynamoQLException("Syntax error in DynamoQL query."));
+                // TODO: Knowing the query would help with debugging - perhaps prepare two levels of messages for the client and for the developer.
                 break;
         }
 
