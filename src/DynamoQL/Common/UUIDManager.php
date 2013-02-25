@@ -26,6 +26,21 @@ class UUIDManager
         return $final;
     }
 
+    // this generates an id that is unique for this session
+    // every subsequent call in the same session with the same data will result in the same GUID
+    public static function generateSessionGUID( $data="" )
+    {
+        global $_COOKIE;
+        if ($data == "")
+            $data = sha1(microtime(true) * 1000000 + rand() * 10000000);
+        $data           = substr(sha1($data),-8);
+        $session        = $_COOKIE["PHPSESSID"];
+        //$time_part      = dechex(sprintf("%d", (int)(microtime(true)*1000)));
+        //$random_part    = substr(sha1(microtime(true) * 1000000 + rand() * 10000000), -8);
+        $final          = strtolower($data ."-". /*$random_part ."-". */$session /*."-". $time_part*/);
+        return $final;
+    }
+
     public static function extract( $data )
     {
         $data           = base_convert($data, 10, 16);
