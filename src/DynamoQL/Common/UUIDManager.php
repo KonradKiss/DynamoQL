@@ -34,7 +34,7 @@ class UUIDManager
         if ($data == "")
             $data = sha1(microtime(true) * 1000000 + rand() * 10000000);
         $data           = substr(sha1($data),-8);
-        $session        = $_COOKIE["PHPSESSID"];
+        $session        = isset($_COOKIE["PHPSESSID"]) ? $_COOKIE["PHPSESSID"] : session_id();
         //$time_part      = dechex(sprintf("%d", (int)(microtime(true)*1000)));
         //$random_part    = substr(sha1(microtime(true) * 1000000 + rand() * 10000000), -8);
         $final          = strtolower($data ."-". /*$random_part ."-". */$session /*."-". $time_part*/);
