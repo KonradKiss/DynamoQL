@@ -51,6 +51,10 @@ class Helper
 
     public static function breakupKeyValuePairs( $txt )
     {
+        // first check if it's json
+        if (substr(trim($txt), 0, 1) == "{")
+            return json_decode($txt, true);
+
         $split = explode(",", $txt);
         $ret   = [];
         foreach ( $split as $spl ) {

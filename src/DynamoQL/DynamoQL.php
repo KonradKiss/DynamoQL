@@ -501,7 +501,8 @@ class DynamoQL
         $field_pairs = [];
         foreach ( $values as $attr_name => $value ) {
             if ( $attr_name != $keypair->hash->name && $attr_name != $keypair->range->name ) {
-                $field_pairs[$attr_name] = ["Action" => \Aws\DynamoDb\Enum\AttributeAction::PUT, "Value" => [(is_numeric($value) ? Type::NUMBER : Type::STRING) => $value]];
+                $field_pairs[$attr_name] = ["Action" => \Aws\DynamoDb\Enum\AttributeAction::PUT,
+                    "Value" => [is_numeric($value) ? [Type::NUMBER => (string)$value] : (is_array($value) ? [Type::STRING => (string)json_encode($value)] : [Type::STRING => (string)$value])]];
             }
         }
 
@@ -548,14 +549,14 @@ class DynamoQL
         $hash_key_value = "";
         $uuid_base      = "";
         foreach ( $values as $attr_name => $value ) {
-            $uuid_base .= $attr_name . $value;
+            $uuid_base .= $attr_name . json_encode($value);
             if ( $attr_name == $keypair->hash->name ) {
                 $field_pairs[$attr_name] = [$keypair->hash->type => (string)$value];
                 $hash_key_value          = $value;
             } else if ( $keypair->range != null && $attr_name == $keypair->range->name ) {
                 $field_pairs[$attr_name] = [$keypair->range->type => $value];
             } else {
-                $field_pairs[$attr_name] = is_numeric($value) ? [Type::NUMBER => (string)$value] : [Type::STRING => (string)$value];
+                $field_pairs[$attr_name] = is_numeric($value) ? [Type::NUMBER => (string)$value] : (is_array($value) ? [Type::STRING => (string)json_encode($value)] : [Type::STRING => (string)$value]);
             }
         }
         $expected = "";
