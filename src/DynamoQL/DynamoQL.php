@@ -633,11 +633,17 @@ class DynamoQL
     {
         $param_array = [
             'TableName'             => $table_name,
-            'KeySchema'             => [
-                'HashKeyElement' => [
-                    'AttributeName' => $hash_key,
-                    'AttributeType' => TypeConverter::byName($hash_type)
+            'AttributeDefinitions'  => [
+                [
+                    'AttributeName'     => $hash_key,
+                    'AttributeType'     => TypeConverter::byName($hash_type)          
                 ]
+            ],
+            'KeySchema'             => [
+                [
+                    'AttributeName' => $hash_key,
+                    'KeyType'       => 'HASH',                
+                ],
             ],
             'ProvisionedThroughput' => [
                 'ReadCapacityUnits'  => 5,
@@ -645,9 +651,13 @@ class DynamoQL
             ]
         ];
         if ( $range_key != "" ) {
-            $param_array['KeySchema']['RangeKeyElement'] = [
+            $param_array['AttributeDefinitions'][] = [
+                'AttributeName'     => $range_key,
+                'AttributeType'     => TypeConverter::byName($range_type)          
+            ];
+            $param_array['KeySchema'][] = [
                 'AttributeName' => $range_key,
-                'AttributeType' => TypeConverter::byName($range_type)
+                'KeyType'       => 'RANGE',
             ];
         }
         try {

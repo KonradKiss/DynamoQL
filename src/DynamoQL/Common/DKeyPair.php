@@ -13,6 +13,8 @@ class DKeyPair
 
     public function __construct( $table_data )
     {
+        print_r($table_data);
+        
         $this->hash = new DKeyData($table_data["KeySchema"]["HashKeyElement"]["AttributeName"],
             $table_data["KeySchema"]["HashKeyElement"]["AttributeType"]);
         if ( isset($table_data["KeySchema"]["RangeKeyElement"]) ) {
