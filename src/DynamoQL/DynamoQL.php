@@ -501,8 +501,10 @@ class DynamoQL
         $field_pairs = [];
         foreach ( $values as $attr_name => $value ) {
             if ( $attr_name != $keypair->hash->name && $attr_name != $keypair->range->name ) {
-                $field_pairs[$attr_name] = ["Action" => \Aws\DynamoDb\Enum\AttributeAction::PUT,
-                    "Value" => [is_numeric($value) ? [Type::NUMBER => (string)$value] : (is_array($value) ? [Type::STRING => (string)json_encode($value)] : [Type::STRING => (string)$value])]];
+                $field_pairs[$attr_name] = [
+                    "Action" => \Aws\DynamoDb\Enum\AttributeAction::PUT,
+                    "Value" => is_numeric($value) ? [Type::NUMBER => (string)$value] : (is_array($value) ? [Type::STRING => (string)json_encode($value)] : [Type::STRING => (string)$value])
+                ];
             }
         }
 
@@ -567,7 +569,7 @@ class DynamoQL
             $hash_key_value                    = $uuid;
         }
 
-        // we assume that the hash is a unique identifier and the value does nto yet exist
+        // we assume that the hash is a unique identifier and the value does not yet exist
         // this will make it fail with an EXCEPTION_VALIDATION if the id exists and not simply overwrite an existing record
         $expected = [$keypair->hash->name => ["Exists" => false]];
 
@@ -583,7 +585,7 @@ class DynamoQL
         if ( $should_batch ) {
             $response             = $this->addBatch("put", $table_name, $field_pairs);
             $response['insertid'] = $hash_key_value;
-        } else {
+        } else {            
             // flush the batch
             $this->flushBatch();
             try {
